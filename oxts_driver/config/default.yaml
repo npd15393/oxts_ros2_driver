@@ -3,7 +3,7 @@ oxts_driver:
 #===============================================================================
     # INS configuration (set up to match the unit)
     ## Unit IP address
-    unit_ip: 192.168.25.44
+    unit_ip: 192.168.196.152
     ## Unit Port (3000 unless intentionally configured otherwise on the INS)
     unit_port: 3000
     ## Path of NCOM to replay (optional, must be absolute path)
