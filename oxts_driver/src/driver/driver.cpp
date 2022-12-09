@@ -30,7 +30,7 @@ OxtsDriver::OxtsDriver(
   // Initialise configurable parameters (all params should have defaults)
   ncom_rate = ncom_rate;
   ncom_topic = "ncom";
-  topic_prefix = "ins";
+  topic_prefix = topic_prefix;
   unit_ip = ip;
   unit_port = port;
   ncom_path = std::string("");
@@ -48,11 +48,11 @@ OxtsDriver::OxtsDriver(
     ncom_path = std::filesystem::canonical(ncom_path);
     inFileNCom.open(ncom_path);
     if (!inFileNCom.is_open()) {
-      fprintf(stderr,"Unable to open NCOM: %s",
+      fprintf(stderr,"SDK: Unable to open NCOM: %s\n",
                     ncom_path.c_str());
       return;
     } else {
-      fprintf(stderr,"Opened NCOM: %s", ncom_path.c_str());
+      fprintf(stderr,"SDK: Opened NCOM: %s\n", ncom_path.c_str());
     }
   } else {
     unitEndpointNCom = boost::asio::ip::udp::endpoint(
@@ -60,7 +60,7 @@ OxtsDriver::OxtsDriver(
         this->unit_port);
 
     this->udpClient.set_local_port(this->unit_port);
-    fprintf(stderr,"Connecting: %s:%d",
+    fprintf(stderr,"SDK: Connecting: %s:%d\n",
                 this->unit_ip.c_str(), this->unit_port);
     
   }
@@ -76,16 +76,15 @@ OxtsDriver::OxtsDriver(
   }
 
   // Wait for config to be populated in NCOM packets
-  fprintf(stderr,"==== Waiting for INS config information...");
-  fprintf(stderr,"============ sn_valid %d , heading_valid %d", nrx->mSerialNumber, nrx->mIsImu2VehHeadingValid);
+  fprintf(stderr,"SDK: Waiting for INS config information...\n");
   while (nrx->mSerialNumber == 0 || nrx->mIsImu2VehHeadingValid == 0) {
     (*this.*update_ncom)();
   }
-  fprintf(stderr,"INS config information received");
+  fprintf(stderr,"SDK: INS config information received\n");
 
   // Wait for INS initialisation if option enabled
   if (wait_for_init) {
-    fprintf(stderr,"Waiting for initialisation...");
+    fprintf(stderr,"SDK: Waiting for initialisation...\n");
     // Only block things that are required for 100% of OxTS navigation
     while (nrx->mInsNavMode != NAV_CONST::NAV_MODE::REAL_TIME &&
             nrx->mIsLatValid == 0 && nrx->mIsLonValid == 0 &&
@@ -104,13 +103,10 @@ OxtsDriver::OxtsDriver(
       (*this.*update_ncom)();
     }
     fprintf(stderr,
-                "Publishing before/without INS initialisation");
+                "SDK: Publishing before/without INS initialisation\n");
   }
 
-  // timer_ncom_ = private_nh->create_wall_timer(ncomInterval,
-  //   std::bind(timer_ncom_callback, this));
-
-  fprintf(stderr,"Publishing NCom packets at: %uHz",
+  fprintf(stderr,"SDK: Publishing NCom packets at: %uHz\n",
               ncom_rate);
 
   timer_start(std::bind(timer_ncom_callback,this), ncomInterval.count());
@@ -152,7 +148,6 @@ void OxtsDriver::getFilePacket() {
 }
 
 void OxtsDriver::getSocketPacket() {
-  // fprintf(stderr,"rcvng packet");
   // Read from open socket
   std::size_t size = this->udpClient.receive_from(
       this->buff, NCOM_PACKET_LENGTH, this->unitEndpointNCom);
@@ -171,12 +166,7 @@ void OxtsDriver::publishPacket() {
                         this->nrx->mTimeWeekSecond))
       return;
     std::string frame_id = "oxts_sn" + std::to_string(this->nrx->mSerialNumber);
-    // auto msg = safeai_interfaces::msg::Ncom();
-    // msg.header.stamp = this->getTimestamp();
-    // msg.header.frame_id = "oxts_sn" + std::to_string(this->nrx->mSerialNumber);
-    // for (int i = 0; i < NCOM_PACKET_LENGTH; ++i)
-    //   msg.raw_packet[i] = this->nrx->mInternal->mCurPkt[i];
-    // this->pubNCom_->publish(msg);
+
     m_external_callback(this->nrx->mInternal, frame_id);
     this->prevRegularWeekSecond = this->nrx->mTimeWeekSecond;
     break;
@@ -210,13 +200,6 @@ bool OxtsDriver::checkRate(double prevPktSec, double currPktSec) {
   }
   return skip_packet;
 }
-
-// rclcpp::Time OxtsDriver::getTimestamp() {
-//   if (this->timestamp_mode == PUB_TIMESTAMP_MODE::ROS)
-//     return this->get_clock()->now();
-//   else
-//     return this->getNcomTime(this->nrx);
-// }
 
 rclcpp::Time OxtsDriver::getNcomTime(const NComRxC *nrx) {
   auto time =
