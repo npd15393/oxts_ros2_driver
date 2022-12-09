@@ -39,6 +39,7 @@ OxtsDriver::OxtsDriver(
   m_external_callback = pub_callback;
 
   ncomInterval = std::chrono::milliseconds(int(1000.0 / ncom_rate));
+
   prevRegularWeekSecond = -1;
 
   nrx = NComCreateNComRxC();
@@ -47,11 +48,11 @@ OxtsDriver::OxtsDriver(
     ncom_path = std::filesystem::canonical(ncom_path);
     inFileNCom.open(ncom_path);
     if (!inFileNCom.is_open()) {
-      printf( "Unable to open NCOM: %s",
+      fprintf(stderr,"Unable to open NCOM: %s",
                     ncom_path.c_str());
       return;
     } else {
-      printf("Opened NCOM: %s", ncom_path.c_str());
+      fprintf(stderr,"Opened NCOM: %s", ncom_path.c_str());
     }
   } else {
     unitEndpointNCom = boost::asio::ip::udp::endpoint(
@@ -59,8 +60,9 @@ OxtsDriver::OxtsDriver(
         this->unit_port);
 
     this->udpClient.set_local_port(this->unit_port);
-    printf("Connecting: %s:%d",
+    fprintf(stderr,"Connecting: %s:%d",
                 this->unit_ip.c_str(), this->unit_port);
+    
   }
 
   // Assign callback functions to timers (callbacks are called at a rate
@@ -74,16 +76,16 @@ OxtsDriver::OxtsDriver(
   }
 
   // Wait for config to be populated in NCOM packets
-  printf("==== Waiting for INS config information...");
-  printf("============ sn_valid %d , heading_valid %d", nrx->mSerialNumber, nrx->mIsImu2VehHeadingValid);
+  fprintf(stderr,"==== Waiting for INS config information...");
+  fprintf(stderr,"============ sn_valid %d , heading_valid %d", nrx->mSerialNumber, nrx->mIsImu2VehHeadingValid);
   while (nrx->mSerialNumber == 0 || nrx->mIsImu2VehHeadingValid == 0) {
     (*this.*update_ncom)();
   }
-  printf("INS config information received");
+  fprintf(stderr,"INS config information received");
 
   // Wait for INS initialisation if option enabled
   if (wait_for_init) {
-    printf("Waiting for initialisation...");
+    fprintf(stderr,"Waiting for initialisation...");
     // Only block things that are required for 100% of OxTS navigation
     while (nrx->mInsNavMode != NAV_CONST::NAV_MODE::REAL_TIME &&
             nrx->mIsLatValid == 0 && nrx->mIsLonValid == 0 &&
@@ -91,9 +93,9 @@ OxtsDriver::OxtsDriver(
             nrx->mIsPitchValid == 0 && nrx->mIsRollValid == 0) {
       (*this.*update_ncom)();
     }
-    printf("INS initialised");
+    fprintf(stderr,"INS initialised");
   } else {
-    printf("Waiting for approximate position...");
+    fprintf(stderr,"Waiting for approximate position...");
     // Wait for a approximate position (while uninitialised, orientation is
     // never approx/valid)
     while (nrx->mIsLatApprox == 0 && nrx->mIsLonApprox == 0 &&
@@ -101,15 +103,30 @@ OxtsDriver::OxtsDriver(
             nrx->mIsLonValid == 0 && nrx->mIsAltValid == 0) {
       (*this.*update_ncom)();
     }
-    printf(
+    fprintf(stderr,
                 "Publishing before/without INS initialisation");
   }
 
-  timer_ncom_ = private_nh->create_wall_timer(ncomInterval,
-    std::bind(timer_ncom_callback, this));
+  // timer_ncom_ = private_nh->create_wall_timer(ncomInterval,
+  //   std::bind(timer_ncom_callback, this));
 
-  printf("Publishing NCom packets at: %uHz",
+  fprintf(stderr,"Publishing NCom packets at: %uHz",
               ncom_rate);
+
+  timer_start(std::bind(timer_ncom_callback,this), ncomInterval.count());
+}
+
+void OxtsDriver::timer_start(boost::function<void()> pub_callback, int interval)
+{
+  std::thread([this, pub_callback, interval]()
+  { 
+    while (true)
+    { 
+      auto x = std::chrono::steady_clock::now() + std::chrono::milliseconds(interval);
+      pub_callback();
+      std::this_thread::sleep_until(x);
+    }
+  }).detach();
 }
 
 void OxtsDriver::timerNcomSocketCallback() {
@@ -127,7 +144,7 @@ void OxtsDriver::getFilePacket() {
 
   do {
       if (!this->inFileNCom.get(c)) {
-          printf("End of NCom file reached.");
+          fprintf(stderr,"End of NCom file reached.");
           rclcpp::shutdown();
           return;
       }
@@ -135,15 +152,15 @@ void OxtsDriver::getFilePacket() {
 }
 
 void OxtsDriver::getSocketPacket() {
-  // printf("rcvng packet");
+  // fprintf(stderr,"rcvng packet");
   // Read from open socket
   std::size_t size = this->udpClient.receive_from(
       this->buff, NCOM_PACKET_LENGTH, this->unitEndpointNCom);
-  // printf("======== ins packet size %zu",size);
+  // fprintf(stderr,"======== ins packet size %zu",size);
   // Add data to decoder
   while (NComNewChars(this->nrx, this->buff, size) != COM_NEW_UPDATE) {
   }
-  // printf("======== decoder ready");
+  // fprintf(stderr,"======== decoder ready");
 } 
 
 void OxtsDriver::publishPacket() {
@@ -153,8 +170,7 @@ void OxtsDriver::publishPacket() {
     if (this->checkRate(this->prevRegularWeekSecond,
                         this->nrx->mTimeWeekSecond))
       return;
-
-    std::string frame_id = frame_id = "oxts_sn" + std::to_string(this->nrx->mSerialNumber);
+    std::string frame_id = "oxts_sn" + std::to_string(this->nrx->mSerialNumber);
     // auto msg = safeai_interfaces::msg::Ncom();
     // msg.header.stamp = this->getTimestamp();
     // msg.header.frame_id = "oxts_sn" + std::to_string(this->nrx->mSerialNumber);
@@ -179,18 +195,18 @@ bool OxtsDriver::checkRate(double prevPktSec, double currPktSec) {
   if (prevPktSec <= 0)
     ;
   else if (currPktSec - prevPktSec > (1.5 / this->ncom_rate)) {
-    printf("Packet drop detected.");
+    fprintf(stderr,"Packet drop detected.");
   } else if (currPktSec < prevPktSec) {
-    printf(
+    fprintf(stderr,
       "Current packet is older than previous packet, skipping packet.");
     skip_packet = true;
   } else if (currPktSec == prevPktSec) {
-    printf(
+    fprintf(stderr,
       "Duplicate NCOM packet detected, skipping packet.");
     skip_packet = true;
   } else if (currPktSec - prevPktSec < (0.5 / this->ncom_rate)) {
-    printf(
-      "Early packet detected, ncom_rate may be misconfigured.");
+    // fprintf(stderr,
+    //   "Early packet detected, ncom_rate may be misconfigured.");
   }
   return skip_packet;
 }

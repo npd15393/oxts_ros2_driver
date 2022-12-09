@@ -104,7 +104,7 @@ private:
   void getFilePacket();
   void getSocketPacket();
   void publishPacket();
-
+  void timer_start(boost::function<void()> pub_callback, int interval);
   /**
    * Publisher for std_msgs/msg/string. Only used for debugging, currently
    * outputs lat, long, alt in string form.
