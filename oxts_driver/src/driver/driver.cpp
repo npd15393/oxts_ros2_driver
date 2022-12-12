@@ -22,8 +22,7 @@ OxtsDriver::OxtsDriver(
   std::string & ip,
   uint16_t port,
   std::string & topic_prefix,
-  boost::function<void(NComRxCInternal *, std::string)> pub_callback,
-  std::shared_ptr<rclcpp::Node> private_nh
+  boost::function<void(NComRxCInternal *, std::string)> pub_callback
 ) 
 {
   // Get parameters (from config, command line, or from default)
@@ -41,7 +40,7 @@ OxtsDriver::OxtsDriver(
   ncomInterval = std::chrono::milliseconds(int(1000.0 / ncom_rate));
 
   prevRegularWeekSecond = -1;
-
+  
   nrx = NComCreateNComRxC();
 
   if (!ncom_path.empty()) {

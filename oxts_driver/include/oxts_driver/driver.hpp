@@ -91,8 +91,6 @@ private:
   boost::function<
     void(NComRxCInternal * ncom, std::string frame_id)> m_external_callback;
 
-  rclcpp::TimerBase::SharedPtr timer_ncom_;
-
   /**
    * Callback function for NCom sampling. Receives data from chosen source
    * (UDP or file) and parses a packet to nrx.
@@ -105,11 +103,6 @@ private:
   void getSocketPacket();
   void publishPacket();
   void timer_start(boost::function<void()> pub_callback, int interval);
-  /**
-   * Publisher for std_msgs/msg/string. Only used for debugging, currently
-   * outputs lat, long, alt in string form.
-   */
-  //rclcpp::Publisher<safeai_interfaces::msg::Ncom>::SharedPtr pubNCom_;
 
 public:
   /**
@@ -121,8 +114,7 @@ public:
   	std::string & ip,
   	uint16_t port,
     std::string & topic_prefix,
-    boost::function<void(NComRxCInternal *, std::string)> pub_callback,
-    std::shared_ptr<rclcpp::Node> private_nh
+    boost::function<void(NComRxCInternal *, std::string)> pub_callback
   );
 
   /** NCom decoder instance */
