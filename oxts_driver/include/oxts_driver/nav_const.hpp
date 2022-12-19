@@ -24,6 +24,9 @@
 
 /**
  * Collection of useful constants
+ *
+ * Useful links:
+ * - https://en.wikipedia.org/wiki/Geodetic_datum
  */
 namespace NAV_CONST {
 /**
@@ -47,7 +50,7 @@ const double DEG2RADS = M_PI / 180.0;
  */
 const double RADS2DEG = 180.0 / M_PI;
 /**
- * Radius of the Earth in metres
+ * Radius of the Earth in metres (Semi-major axis)
  */
 const double EARTH_RADIUS = 6378137.0;
 /**
@@ -55,9 +58,18 @@ const double EARTH_RADIUS = 6378137.0;
  */
 const double FLAT_FACTOR = (1.0 / 298.257223563);
 /**
- * Flattening factor WGS84 Model
+ * Flattening factor WGS84 Model squared
  */
 const double FLAT_FACTOR2 = std::pow((1.0 - FLAT_FACTOR), 2);
+/**
+ * The Semi-minor axis of the Earth
+ */
+const double EARTH_SEMI_MINOR =
+    NAV_CONST::EARTH_RADIUS * (1 - (1 / NAV_CONST::FLAT_FACTOR));
+/**
+ * Square of Eccentricity
+ */
+const double ECC2 = NAV_CONST::FLAT_FACTOR * (2 - NAV_CONST::FLAT_FACTOR);
 
 /**
  * Enumeration of GNSS position modes

@@ -25,6 +25,8 @@ find_package(tf2_kdl REQUIRED)
 
 add_library(oxts_driver SHARED
                src/lib/NComRxC.c 
+               src/lib/nav_conversions.cpp
+               src/lib/parser_utils.cpp
                src/driver/driver.cpp)
 
 ament_target_dependencies(oxts_driver 

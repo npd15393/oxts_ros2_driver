@@ -89,7 +89,7 @@ private:
   double prevRegularWeekSecond;
   
   boost::function<
-    void(NComRxCInternal * ncom, std::string frame_id)> m_external_callback;
+    void(NComRxC * ncom, std::string frame_id)> m_external_callback;
 
   /**
    * Callback function for NCom sampling. Receives data from chosen source
@@ -114,7 +114,7 @@ public:
   	std::string & ip,
   	uint16_t port,
     std::string & topic_prefix,
-    boost::function<void(NComRxCInternal *, std::string)> pub_callback
+    boost::function<void(NComRxC *, std::string)> pub_callback
   );
 
   /** NCom decoder instance */

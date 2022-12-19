@@ -22,7 +22,7 @@ OxtsDriver::OxtsDriver(
   std::string & ip,
   uint16_t port,
   std::string & topic_prefix,
-  boost::function<void(NComRxCInternal *, std::string)> pub_callback
+  boost::function<void(NComRxC *, std::string)> pub_callback
 ) 
 {
   // Get parameters (from config, command line, or from default)
@@ -166,7 +166,7 @@ void OxtsDriver::publishPacket() {
       return;
     std::string frame_id = "oxts_sn" + std::to_string(this->nrx->mSerialNumber);
 
-    m_external_callback(this->nrx->mInternal, frame_id);
+    m_external_callback(this->nrx, frame_id);
     this->prevRegularWeekSecond = this->nrx->mTimeWeekSecond;
     break;
   }
